@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Domain Health Check</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="page">
+      <header>
+        <div class="badge">🛡️ no API keys, ever</div>
+        <h1>Domain Health Check</h1>
+        <p class="subtitle">
+          A quick open-data sanity check before doing business with a company —
+          domain registration, TLS certificate, DNS, and HTTP security.
+        </p>
+      </header>
+
+      <form id="check-form">
+        <input
+          type="text"
+          id="domain-input"
+          placeholder="e.g. nike.com"
+          maxlength="253"
+          autocomplete="off"
+          required
+        />
+        <button type="submit" id="check-button">
+          <span class="button-label">Check</span>
+        </button>
+      </form>
+
+      <div id="status" role="status" aria-live="polite"></div>
+      <ul id="check-grid" class="check-grid"></ul>
+    </div>
+
+    <script src="/app.js"></script>
+  </body>
+</html>

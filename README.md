@@ -9,14 +9,21 @@ presence, and basic HTTP security posture. **No API keys, ever.**
 - [x] Session 1 — normalized model, all four pure interpretation functions
       (tested against real captured API responses), resilient orchestration
       service, all unit-tested fully offline
-- [ ] Session 2 — real checkers (RDAP, TLS, DNS, HTTP), CLI, Express API, frontend
+- [x] Session 2 — real checkers (RDAP, TLS, DNS, HTTP), CLI, Express API,
+      frontend. **Verified live end to end**, including the graceful-
+      degradation case: a real `.se` domain correctly shows "unavailable" for
+      registration (not an error) while the other three checks return real data
 - [ ] Session 3 — docs, CI, GitHub push
 
 ## Quickstart
 
+Genuinely free, always:
+
 ```bash
 npm install
-npm test   # fully offline, no network needed
+npm test               # 36 tests, fully offline, no network needed
+npm run cli -- nike.com   # real, live checks printed to the terminal
+npm run dev              # starts the real dashboard on :3000
 ```
 
 ## License
