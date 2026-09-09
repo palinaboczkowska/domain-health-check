@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    # Daily -- genuinely free, and this project's live checks depend on
+    # general internet infrastructure (DNS, TLS, IANA's bootstrap file)
+    # rather than any single vendor's uptime, so they're safe to run often.
+    - cron: "42 6 * * *"
+
+jobs:
+  lint-typecheck-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run build
+      - run: npm test
+        # Fixtures and hand-built objects only -- no live network calls.
+
+  live-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Start server and check a real .com domain
+        run: |
+          node dist/server/index.js &
+          SERVER_PID=$!
+          sleep 2
+          curl -sf -X POST http://localhost:3000/api/check \
+            -H "Content-Type: application/json" \
+            -d '{"domain":"github.com"}' | tee /tmp/com.json
+          node -e "
+            const r = JSON.parse(require('fs').readFileSync('/tmp/com.json', 'utf8'));
+            if (!Array.isArray(r.checks) || r.checks.length !== 4) {
+              throw new Error('Expected exactly 4 checks, got: ' + JSON.stringify(r.checks?.length));
+            }
+            const registration = r.checks.find((c) => c.checkId === 'registration');
+            if (registration.status === 'unavailable') {
+              throw new Error('.com should have real registration data, not unavailable');
+            }
+            console.log('github.com: OK');
+          "
+          kill $SERVER_PID
+      - name: Start server and confirm graceful degradation on a real .se domain
+        run: |
+          node dist/server/index.js &
+          SERVER_PID=$!
+          sleep 2
+          curl -sf -X POST http://localhost:3000/api/check \
+            -H "Content-Type: application/json" \
+            -d '{"domain":"spotify.se"}' | tee /tmp/se.json
+          node -e "
+            const r = JSON.parse(require('fs').readFileSync('/tmp/se.json', 'utf8'));
+            const registration = r.checks.find((c) => c.checkId === 'registration');
+            if (registration.status !== 'unavailable') {
+              throw new Error('Expected .se registration to be unavailable, got: ' + registration.status);
+            }
+            if (registration.error) {
+              throw new Error('unavailable must not have an .error field');
+            }
+            console.log('spotify.se registration correctly unavailable (not an error): OK');
+          "
+          kill $SERVER_PID
