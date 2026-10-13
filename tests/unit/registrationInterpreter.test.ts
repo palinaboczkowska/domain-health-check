@@ -6,10 +6,14 @@ import {
   IanaBootstrapSchema,
   findRdapBaseUrl,
   interpretRdapResponse,
+  interpretSeWhoisResponse,
   unavailableRegistrationResult,
 } from "../../src/checks/registrationInterpreter.js";
 
-const fixturesDir = path.join(path.dirname(fileURLToPath(import.meta.url)), "../fixtures");
+const fixturesDir = path.join(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../fixtures",
+);
 
 async function loadFixture(name: string): Promise<unknown> {
   const raw = await readFile(path.join(fixturesDir, name), "utf8");
@@ -61,14 +65,18 @@ describe("interpretRdapResponse", () => {
 
   it("returns warning when expiry is within the warning window", () => {
     const now = new Date("2026-01-01T00:00:00.000Z");
-    const raw = { events: [{ eventAction: "expiration", eventDate: "2026-01-15T00:00:00.000Z" }] };
+    const raw = {
+      events: [{ eventAction: "expiration", eventDate: "2026-01-15T00:00:00.000Z" }],
+    };
 
     expect(interpretRdapResponse(raw, now).status).toBe("warning");
   });
 
   it("returns critical when already expired", () => {
     const now = new Date("2026-01-01T00:00:00.000Z");
-    const raw = { events: [{ eventAction: "expiration", eventDate: "2025-12-01T00:00:00.000Z" }] };
+    const raw = {
+      events: [{ eventAction: "expiration", eventDate: "2025-12-01T00:00:00.000Z" }],
+    };
 
     const result = interpretRdapResponse(raw, now);
     expect(result.status).toBe("critical");
@@ -88,5 +96,41 @@ describe("unavailableRegistrationResult", () => {
     expect(result.status).toBe("unavailable");
     expect(result.error).toBeUndefined();
     expect(result.summary).toContain(".se");
+  });
+});
+
+describe("interpretSeWhoisResponse", () => {
+  async function loadText(name: string): Promise<string> {
+    return readFile(path.join(fixturesDir, name), "utf8");
+  }
+
+  it("reads the expiry date from a real .se WHOIS printout (svt.se)", async () => {
+    const text = await loadText("whois-se-svt.txt");
+    const result = interpretSeWhoisResponse(text, new Date("2026-10-13T00:00:00Z"));
+
+    expect(result.status).toBe("ok");
+    expect(result.details).toMatchObject({ expiresAt: "2026-12-31", source: "whois" });
+    expect(result.summary).toBe("Domain registration expires in 79 day(s)");
+  });
+
+  it("uses the same warning threshold as RDAP", async () => {
+    const text = await loadText("whois-se-svt.txt");
+    const result = interpretSeWhoisResponse(text, new Date("2026-12-10T00:00:00Z"));
+
+    expect(result.status).toBe("warning");
+  });
+
+  it("marks a real 'not found' printout as not registered", async () => {
+    const text = await loadText("whois-se-notfound.txt");
+    const result = interpretSeWhoisResponse(text, new Date("2026-10-13T00:00:00Z"));
+
+    expect(result.status).toBe("critical");
+    expect(result.summary).toBe("Domain is not registered");
+  });
+
+  it("returns unknown instead of guessing when there is no expires line", () => {
+    const result = interpretSeWhoisResponse("# some banner\nstate: active\n", new Date());
+
+    expect(result.status).toBe("unknown");
   });
 });

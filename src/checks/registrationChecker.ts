@@ -1,5 +1,8 @@
+import { connect } from "node:net";
 import {
   IanaBootstrapSchema,
+  WHOIS_SERVERS,
+  interpretSeWhoisResponse,
   findRdapBaseUrl,
   interpretRdapResponse,
   unavailableRegistrationResult,
@@ -27,6 +30,24 @@ async function getBootstrap(): Promise<IanaBootstrapFile> {
   return data;
 }
 
+const WHOIS_TIMEOUT_MS = 8000;
+
+/** Plain WHOIS (RFC 3912): send the domain on port 43, read until the server closes. */
+function whoisQuery(server: string, domain: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const socket = connect(43, server);
+    let text = "";
+    socket.setEncoding("utf8");
+    socket.setTimeout(WHOIS_TIMEOUT_MS, () => {
+      socket.destroy(new Error(`WHOIS lookup on ${server} timed out`));
+    });
+    socket.on("connect", () => socket.write(`${domain}\r\n`));
+    socket.on("data", (chunk: string) => (text += chunk));
+    socket.on("end", () => resolve(text));
+    socket.on("error", reject);
+  });
+}
+
 function getTld(domain: string): string {
   const parts = domain.split(".");
   return parts[parts.length - 1] ?? domain;
@@ -34,8 +55,9 @@ function getTld(domain: string): string {
 
 /**
  * Checks the IANA bootstrap file first; if the domain's TLD isn't listed
- * (confirmed live for .se and .io during this project's research), returns
- * "unavailable" directly without attempting any RDAP call at all.
+ * (confirmed live for .se and .io during this project's research), it falls
+ * back to WHOIS for the few TLDs with a known WHOIS server (.se, .nu), and
+ * otherwise returns "unavailable" without attempting any guessed endpoint.
  */
 export function createRegistrationChecker(): DomainChecker {
   return {
@@ -47,6 +69,16 @@ export function createRegistrationChecker(): DomainChecker {
       const baseUrl = findRdapBaseUrl(bootstrap, tld);
 
       if (!baseUrl) {
+        const whoisServer = WHOIS_SERVERS[tld.toLowerCase()];
+        if (whoisServer) {
+          const text = await whoisQuery(whoisServer, domain);
+          return {
+            checkId: "registration",
+            checkName: "Domain Registration",
+            checkedAt: new Date().toISOString(),
+            ...interpretSeWhoisResponse(text, new Date()),
+          };
+        }
         return {
           checkId: "registration",
           checkName: "Domain Registration",

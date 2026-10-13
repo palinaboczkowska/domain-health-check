@@ -1,4 +1,4 @@
-# Why ".se" showing "unavailable" is a feature, not a bug
+# Why an unlisted TLD shows "unavailable", and how .se got covered
 
 ## The finding
 
@@ -54,3 +54,18 @@ The only thing that should never happen is hardcoding an unofficial endpoint
 (like the `.io` one found during testing) just because it happened to work
 once — that trades a small, honest, well-understood gap for a fragile,
 undocumented dependency.
+
+## Update: .se and .nu via WHOIS (2026-10-13)
+
+The Swedish Internet Foundation runs `.se` and `.nu` and publishes expiry
+dates on its own WHOIS servers (`whois.iis.se`, `whois.iis.nu`). These are
+the registry's official servers, not a guessed third-party endpoint, so they
+pass the rule above. When a TLD is missing from the RDAP bootstrap,
+`registrationChecker.ts` now checks a small `WHOIS_SERVERS` map first.
+
+WHOIS is plain text, so `interpretSeWhoisResponse` trusts only two shapes: a
+`domain "x" not found.` line (→ `critical`, "Domain is not registered") and
+an `expires: YYYY-MM-DD` line (→ the same ok/warning/critical thresholds as
+RDAP). Anything else becomes `unknown`, never a guess. Tests use real
+captured printouts (`tests/fixtures/whois-se-*.txt`). Other unlisted TLDs,
+like `.io`, still show `unavailable`.

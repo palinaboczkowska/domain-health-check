@@ -8,7 +8,7 @@ flowchart TD
     API --> VAL[domainSchema: validate/normalize]
     VAL --> SVC[domainHealthService]
     SVC --> BATCH[Promise.allSettled over 4 checkers]
-    BATCH --> REG[registrationChecker: IANA bootstrap + RDAP]
+    BATCH --> REG[registrationChecker: IANA bootstrap + RDAP, WHOIS for .se/.nu]
     BATCH --> CERT[certificateChecker: tls.connect]
     BATCH --> DNS[dnsChecker: dns/promises]
     BATCH --> HTTP[httpSecurityChecker: fetch]
@@ -33,7 +33,9 @@ the sibling projects (`statuspageParser.ts`/`statuspageAdapter.ts`,
 - **Registration** (`registrationInterpreter.ts` / `registrationChecker.ts`):
   looks up the domain's TLD in IANA's official RDAP bootstrap file (cached
   24h) before attempting anything. Verified live that `.se` and `.io` are
-  both genuinely absent from that file — see
+  both genuinely absent from that file. For `.se` and `.nu` it falls back to
+  the registry's own WHOIS server and reads the `expires:` line; other
+  unlisted TLDs return "unavailable" — see
   [`docs/graceful-degradation-design.md`](./graceful-degradation-design.md).
 - **TLS Certificate** (`certificateInterpreter.ts` / `certificateChecker.ts`):
   a raw `tls.connect` with `rejectUnauthorized: false` — the only way to

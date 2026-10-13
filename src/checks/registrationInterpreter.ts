@@ -69,7 +69,16 @@ export function interpretRdapResponse(
     };
   }
 
-  const expiresAt = new Date(expirationEvent.eventDate);
+  return expiryResult(expirationEvent.eventDate, now, thresholds);
+}
+
+/** Shared by RDAP and WHOIS: turns an expiry date into ok/warning/critical. */
+function expiryResult(
+  expiresAtRaw: string,
+  now: Date,
+  thresholds: RegistrationThresholds,
+): Omit<CheckResult, "checkId" | "checkName" | "checkedAt"> {
+  const expiresAt = new Date(expiresAtRaw);
   const daysRemaining = Math.floor(
     (expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
   );
@@ -90,10 +99,52 @@ export function interpretRdapResponse(
         ? `Domain registration expired ${Math.abs(daysRemaining)} day(s) ago`
         : `Domain registration expires in ${daysRemaining} day(s)`,
     details: {
-      expiresAt: expirationEvent.eventDate,
+      expiresAt: expiresAtRaw,
       daysRemaining,
     },
   };
+}
+
+/**
+ * WHOIS servers for TLDs that are missing from IANA's RDAP bootstrap but
+ * publish expiry dates over plain WHOIS. Both run by the Swedish Internet
+ * Foundation; verified live against svt.se.
+ */
+export const WHOIS_SERVERS: Record<string, string> = {
+  se: "whois.iis.se",
+  nu: "whois.iis.nu",
+};
+
+/**
+ * Pure interpretation of a real .se/.nu WHOIS printout. The format is plain
+ * text, so only two shapes are trusted: a `domain "x" not found.` line, and
+ * an `expires: YYYY-MM-DD` line. Anything else is "unknown", never a guess.
+ */
+export function interpretSeWhoisResponse(
+  text: string,
+  now: Date,
+  thresholds: RegistrationThresholds = DEFAULT_REGISTRATION_THRESHOLDS,
+): Omit<CheckResult, "checkId" | "checkName" | "checkedAt"> {
+  if (/^domain ".+" not found\.$/m.test(text)) {
+    return {
+      status: "critical",
+      summary: "Domain is not registered",
+      details: { source: "whois" },
+    };
+  }
+
+  const match = /^expires:\s+(\d{4}-\d{2}-\d{2})\s*$/m.exec(text);
+  if (!match?.[1]) {
+    return {
+      status: "unknown",
+      summary: "WHOIS response did not include an expiry date",
+      details: {},
+      error: "No 'expires:' line in WHOIS response",
+    };
+  }
+
+  const result = expiryResult(match[1], now, thresholds);
+  return { ...result, details: { ...result.details, source: "whois" } };
 }
 
 /** The structural "not an error" result for a TLD absent from IANA's bootstrap. */
