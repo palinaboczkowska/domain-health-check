@@ -276,3 +276,17 @@ button[type="submit"]:disabled {
     background-position: 0 50%;
   }
 }
+
+.check-card--wide {
+  grid-column: 1 / -1;
+}
+
+.check-card--wide .check-name {
+  font-size: 1.1rem;
+}
+
+.check-extra {
+  margin: 0.5rem 0 0;
+  font-size: 0.8rem;
+  opacity: 0.65;
+}

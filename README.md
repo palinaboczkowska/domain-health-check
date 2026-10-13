@@ -2,11 +2,18 @@
 
 Type in a domain, get an open-data sanity check before doing business with
 that company: domain registration/expiry, TLS certificate health, DNS
-presence, and basic HTTP security posture. **No API keys, ever.**
+presence, basic HTTP security posture, and a short summary of the website
+itself (its own title, description and language). **No API keys, ever.**
 
 ## Why this exists
 
-Checking whether a domain is about to expire, whether its certificate is
+I built it for my own freelance web clients. They still write to ask when
+their domain needs renewing and paying for next year. Instead of logging in
+at the registrar and looking up credentials, I type the domain here and see
+the expiry date, the registrar, the certificate and the site's own
+description in one view.
+
+More generally, checking whether a domain is about to expire, whether its certificate is
 healthy, or whether it even resolves is a real, quick due-diligence step
 before trusting a company you haven't worked with before. This tool
 automates that check using nothing but open data and protocol-level checks —

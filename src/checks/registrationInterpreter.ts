@@ -31,8 +31,14 @@ const RdapEventSchema = z.object({
   eventDate: z.string(),
 });
 
+const RdapEntitySchema = z.object({
+  roles: z.array(z.string()).optional().default([]),
+  vcardArray: z.tuple([z.string(), z.array(z.array(z.unknown()))]).optional(),
+});
+
 export const RdapDomainResponseSchema = z.object({
   events: z.array(RdapEventSchema).optional().default([]),
+  entities: z.array(RdapEntitySchema).optional().default([]),
 });
 export type RdapDomainResponse = z.infer<typeof RdapDomainResponseSchema>;
 
@@ -69,7 +75,15 @@ export function interpretRdapResponse(
     };
   }
 
-  return expiryResult(expirationEvent.eventDate, now, thresholds);
+  const result = expiryResult(expirationEvent.eventDate, now, thresholds);
+  return { ...result, details: { ...result.details, registrar: rdapRegistrar(data) } };
+}
+
+/** The registrar's name, from the vCard "fn" field of the entity with the "registrar" role. */
+function rdapRegistrar(data: RdapDomainResponse): string | null {
+  const entity = data.entities.find((e) => e.roles.includes("registrar"));
+  const fn = entity?.vcardArray?.[1].find((field) => field[0] === "fn");
+  return typeof fn?.[3] === "string" ? fn[3] : null;
 }
 
 /** Shared by RDAP and WHOIS: turns an expiry date into ok/warning/critical. */
@@ -143,8 +157,9 @@ export function interpretSeWhoisResponse(
     };
   }
 
+  const registrar = /^registrar:\s+(.+?)\s*$/m.exec(text)?.[1] ?? null;
   const result = expiryResult(match[1], now, thresholds);
-  return { ...result, details: { ...result.details, source: "whois" } };
+  return { ...result, details: { ...result.details, registrar, source: "whois" } };
 }
 
 /** The structural "not an error" result for a TLD absent from IANA's bootstrap. */

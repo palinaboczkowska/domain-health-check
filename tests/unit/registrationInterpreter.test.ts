@@ -61,6 +61,7 @@ describe("interpretRdapResponse", () => {
     expect(result.details.expiresAt).toBe("2028-03-05T05:00:00Z");
     expect(typeof result.details.daysRemaining).toBe("number");
     expect(result.details.daysRemaining as number).toBeGreaterThan(30);
+    expect(result.details.registrar).toBe("MarkMonitor Inc.");
   });
 
   it("returns warning when expiry is within the warning window", () => {
@@ -109,7 +110,11 @@ describe("interpretSeWhoisResponse", () => {
     const result = interpretSeWhoisResponse(text, new Date("2026-10-13T00:00:00Z"));
 
     expect(result.status).toBe("ok");
-    expect(result.details).toMatchObject({ expiresAt: "2026-12-31", source: "whois" });
+    expect(result.details).toMatchObject({
+      expiresAt: "2026-12-31",
+      registrar: "CSC Corp Domains",
+      source: "whois",
+    });
     expect(result.summary).toBe("Domain registration expires in 79 day(s)");
   });
 
