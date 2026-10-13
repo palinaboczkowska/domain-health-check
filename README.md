@@ -7,11 +7,11 @@ itself (its own title, description and language). **No API keys, ever.**
 
 ## Why this exists
 
-I built it for my own freelance web clients. They still write to ask when
-their domain needs renewing and paying for next year. Instead of logging in
-at the registrar and looking up credentials, I type the domain here and see
-the expiry date, the registrar, the certificate and the site's own
-description in one view.
+I built it for myself. My former freelance web clients still write to ask
+when their domain needs renewing and paying for next year. Instead of
+logging in at the registrar and looking up credentials, I run this locally,
+type the domain and see the expiry date, the registrar, the certificate and
+the site's own description in one view.
 
 More generally, checking whether a domain is about to expire, whether its certificate is
 healthy, or whether it even resolves is a real, quick due-diligence step
