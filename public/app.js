@@ -66,7 +66,7 @@ function renderCheckCard(check) {
   return li;
 }
 
-function renderWebsiteCard(check) {
+function renderWebsiteCard(check, registrar) {
   const li = renderCheckCard(check);
   li.classList.add("check-card--wide");
   if (check.status === "ok") {
@@ -77,6 +77,7 @@ function renderWebsiteCard(check) {
     const parts = [];
     if (check.details.title && check.details.title !== name.textContent)
       parts.push(check.details.title);
+    if (registrar) parts.push(`Registrar: ${registrar}`);
     if (check.details.language) parts.push(`Language: ${check.details.language}`);
     meta.textContent = parts.join(" · ");
     if (parts.length > 0) li.append(meta);
@@ -109,9 +110,13 @@ form.addEventListener("submit", async (event) => {
 
     setStatus(`Checked ${data.domain}`);
     grid.innerHTML = "";
+    const registrar = data.checks.find((c) => c.checkId === "registration")?.details
+      ?.registrar;
     for (const check of data.checks) {
       grid.appendChild(
-        check.checkId === "website" ? renderWebsiteCard(check) : renderCheckCard(check),
+        check.checkId === "website"
+          ? renderWebsiteCard(check, registrar)
+          : renderCheckCard(check),
       );
     }
   } catch {
